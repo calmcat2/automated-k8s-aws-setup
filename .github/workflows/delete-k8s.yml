@@ -11,6 +11,11 @@ on:
           description: 'run id of the workflow that has a artifact of a terraform.tfstate file'
           required: false
           type: number
+        artifact_name:
+          description: 'Name of the artifact to be downloaded'
+          required: false
+          type: string
+          default: 'terraform_state_files'
 
 permissions:
   contents: read
@@ -41,7 +46,7 @@ jobs:
       if: ${{ inputs.run_id != '' }}
       uses: actions/download-artifact@v4
       with:
-        name: terraform_state_files2
+        name: ${{inputs.artifact_name}}
         github-token: ${{ secrets.ARTIFACT_TOKEN }}    
         run-id: ${{ inputs.run_id }}   
         path: ./Terraform3            

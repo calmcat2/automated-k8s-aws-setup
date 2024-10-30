@@ -231,5 +231,5 @@ jobs:
     - name: Upload Terraform State
       uses: actions/upload-artifact@v4
       with:
-        name: terraform_state_files2
+        name: terraform_state_files
         path: "./Terraform2/terraform.tfstate"
