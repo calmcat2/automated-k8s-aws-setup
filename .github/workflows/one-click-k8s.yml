@@ -46,7 +46,7 @@ jobs:
       TF_VAR_node_nums: ${{inputs.num_workers}}
       TF_VAR_master_machine_type: ${{inputs.master_machine_type}}
       TF_VAR_worker_machine_type: ${{inputs.worker_machine_type}}
-      TF_VAR_ssh_key: ${{inputs.ssh_key}}
+      TF_VAR_key_name: ${{inputs.ssh_key}}
 
     steps:
     - name: Checkout
