@@ -1,0 +1,1 @@
+# automated-k8s-aws-setup
