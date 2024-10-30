@@ -41,12 +41,9 @@ We use the workflow `Delete a k8s cluster` to destroy a Kubernetes cluster. Ther
      - **Note**: Give your token a descriptive name.
      - **Expiration**: Set an expiration date for the token.
      - **Permissions**: Select the following scopes:
-       - `repo` (Full control of private repositories)
-       - `workflow` (Update GitHub Action workflows)
-       - `read:packages` (Read access to GitHub Packages)
-       - `write:packages` (Write access to GitHub Packages)
-       - `delete:packages` (Delete access to GitHub Packages)
-       - `admin:repo_hook` (Full control of repository hooks)
+       - `repo` : A private repository
+       - `Actions`: Read-only
+       - `Secrets`: Read-only
      - Click "Generate token".
 2. Copy the Token:
    - Copy the generated token. **Note**: You will not be able to see this token again, so make sure to copy it now.

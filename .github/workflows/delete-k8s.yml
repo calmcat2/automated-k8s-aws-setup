@@ -41,7 +41,10 @@ jobs:
 
     - name: Terraform Init
       run: terraform init
-
+    
+    - name: List Installed Providers
+      run: terraform providers
+      
     - name: Download artifact from previous workflow
       if: ${{ inputs.run_id != '' }}
       uses: actions/download-artifact@v4
