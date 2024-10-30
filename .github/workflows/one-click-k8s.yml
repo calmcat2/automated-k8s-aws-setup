@@ -1,0 +1,231 @@
+name: 'Create a k8s cluster'
+
+on:
+  workflow_dispatch:
+    inputs:
+      region: 
+        description: 'Default region to create all resources (def. us-east-1).'
+        required: false
+        default: 'us-east-1'
+        type: string
+      num_workers:
+        description: 'Number of worker nodes to be provisioned (def. 1).'
+        required: false
+        default: 1
+        type: number
+      master_machine_type:
+        description: "Machine type of the master node (def. t2.medium)."
+        required: false
+        default: 't2.medium'
+        type: string
+      worker_machine_type:
+        description: "Machine type of the worker node (def. t2.medium)."
+        default: 't2.medium'
+        required: false
+        type: string
+
+
+permissions:
+  contents: read
+
+jobs:
+  Terraform-start:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./Terraform1
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      TF_VAR_region: ${{inputs.region}}
+      TF_VAR_node_nums: ${{inputs.num_workers}}
+      TF_VAR_master_machine_type: ${{inputs.master_machine_type}}
+      TF_VAR_worker_machine_type: ${{inputs.worker_machine_type}}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3.1.2
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Format
+      run: terraform fmt 
+
+    - name: Terraform Format check
+      run: terraform fmt -check
+
+    - name: Terraform Plan
+      run: terraform plan -input=false
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve -input=false
+      continue-on-error: true
+    
+    - name: Upload Terraform State
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform_state_files
+        path: "./Terraform1/terraform.tfstate"
+    
+    - name: Upload inventory
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform_inventory_output
+        path: "./Terraform1/ansible/inventory.ini"
+
+  Ansible:
+    needs: Terraform-start
+    name: Ansible Bootstrap a k8s cluster
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./Ansible
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          echo "${{ secrets.SSH_KEY_EC2 }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Download inventory
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: terraform_inventory_output 
+          path: ./Ansible/inventory   
+
+      - name: Install Ansible
+        shell: bash
+        run: |
+          sudo apt update -y
+          sudo apt install -y ansible
+
+      - name: Run Ansible Playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: False
+        run: |
+          ansible-playbook -i inventory/inventory.ini playbooks/playbook.yml --private-key private_key.pem
+      
+      - name: Copy kubeconfig to the github workspace
+        run: |
+          mkdir config
+          cp /tmp/kubeconfig config/kubeconfig
+
+      - name: Upload kubeconfig file 
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: ./Ansible/config/kubeconfig
+
+  Kubectl-test:
+    name: Test k8s cluster
+    runs-on: ubuntu-latest
+    needs: Ansible 
+
+    steps:
+    - name: Obtain kubeconfig
+      uses: actions/download-artifact@v4
+      with:
+        name: kubeconfig  
+        path: ~/.kube
+    
+    - name: Set KUBECONFIG env
+      id: kubeconfig
+      run: |
+        chmod 600 ~/.kube/kubeconfig
+        echo "KUBECONFIG_DATA=$(cat ~/.kube/kubeconfig | base64 -w 0)" >> $GITHUB_OUTPUT
+
+    - name: Kubectl tool installer
+      uses: tale/kubectl-action@v1
+      with:
+        base64-kube-config: ${{ steps.kubeconfig.outputs.KUBECONFIG_DATA }}
+        kubectl-version: v1.31.0
+    
+    - name: Check Cluster Health
+      run: |
+        # Check API Server health
+        ls -la ~/.kube/kubeconfig
+        if ! kubectl get --raw='/readyz?verbose'; then
+          echo "API Server is not healthy"
+          exit 1
+        fi
+        
+        # Check Node Status
+        if ! kubectl get nodes | grep -v "Ready" | grep -v "NAME"; then
+          echo "All nodes are Ready"
+        else
+          echo "Some nodes are not Ready"
+          kubectl get nodes
+          exit 1
+        fi
+        
+        # Check Core Components
+        if ! kubectl get pods -n kube-system | grep -v "Running" | grep -v "Completed" | grep -v "NAME"; then
+          echo "All system pods are running"
+        else
+          echo "Some system pods are not running"
+          kubectl get pods -n kube-system
+          exit 1
+        fi
+        
+        # Check Component Status
+        if ! kubectl get cs | grep -v "Healthy" | grep -v "NAME"; then
+          echo "All components are healthy"
+        else
+          echo "Some components are unhealthy"
+          kubectl get cs
+          exit 1
+        fi
+
+  Security-enhancement:
+    name: Close ssh port on all nodes
+    needs: Kubectl-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./Terraform2
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3.1.2
+    
+    - name: Download terraform state file
+      uses: actions/download-artifact@v4.1.8
+      with:
+        name: terraform_state_files
+        path: ./Terraform2
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Format
+      run: terraform fmt 
+
+    - name: Terraform Plan
+      run: terraform plan -input=false
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve -input=false
+      continue-on-error: true
+
+    - name: Upload Terraform State
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform_state_files2
+        path: "./Terraform2/terraform.tfstate"

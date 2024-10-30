@@ -1,0 +1,72 @@
+---
+
+- name: Swap off for kubernetes
+  command: swapoff -a
+
+- name: apt update
+  apt:
+    update_cache: yes
+
+- name: Install necessary packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+    state: latest
+
+- name: Download the Kubernetes GPG key and add it to the keyring
+  shell: |
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | 
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg 
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Create Kubernetes APT repository file
+  file:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    state: touch
+    mode: '0644'
+
+- name: Add Kubernetes APT repository
+  lineinfile:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    line: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    state: present
+
+- name: apt update
+  apt:
+    update_cache: yes
+
+- name: Install kubelet, kubeadm and kubectl 
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Mark kubelet, kubeadm, and kubectl to hold their version (prevent upgrades)
+  command: apt-mark hold kubelet kubeadm kubectl
+
+- name: Add kubelet config file
+  copy: 
+    src: kubelet_config.yml
+    dest: /var/lib/kubelet/config.yaml
+    mode: '0644'
+
+- name: Enable kubelet
+  service:
+    name: kubelet 
+    state: started 
+    enabled: true 
+
+- name: Verify installation by checking kubelet status
+  command: systemctl status kubelet
+  register: kubelet_status
+  ignore_errors: true
+
+- name: Display kubelet status output
+  debug:
+    var: kubelet_status.stdout_lines

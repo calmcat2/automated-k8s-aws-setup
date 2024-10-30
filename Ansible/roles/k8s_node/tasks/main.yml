@@ -1,0 +1,5 @@
+---
+# tasks file for k8s-master
+- include_tasks: install_containerd.yml
+- include_tasks: install_k8s.yml
+- include_tasks: ip_forward.yml

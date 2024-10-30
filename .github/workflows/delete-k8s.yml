@@ -1,0 +1,53 @@
+name: 'Delete a terraform created k8s cluster'
+# The workflow deletes all resources recorded in a terraform tfstate file.
+# If run_id is passed, then download the tfstate file, which will be used to detroy the resources.
+# User can also upload the tfstate file to the Terraform3 folder (it's only recommended for a private repo)
+# If no tfstate file is provided, nothing will happen. 
+
+on:
+  workflow_dispatch:
+    inputs:
+        run_id:
+          description: 'run id of the workflow that has a artifact of a terraform.tfstate file'
+          required: false
+          type: number
+
+permissions:
+  contents: read
+
+jobs:
+  Terraform:
+    name: Terraform destroys k8s cluster
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./Terraform3
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3.1.2
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Download artifact from previous workflow
+      if: ${{ inputs.run_id != '' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform_state_files2
+        github-token: ${{ secrets.GITHUB_TOKEN }}    
+        run-id: ${{ inputs.run_id }}   
+        path: ./Terraform3            
+
+    - name: Terraform Plan Destroy
+      run: terraform plan -destroy 
+
+    - name: Terraform Destroy
+      run: terraform destroy -auto-approve -input=false

@@ -1,0 +1,105 @@
+---
+- name: Update package cache
+  apt:
+    update_cache: yes
+
+- name: Download and Install containerd
+  block:
+    - name: Download containerd plugins
+      get_url:
+        url: https://github.com/containerd/containerd/releases/download/v1.7.23/containerd-1.7.23-linux-amd64.tar.gz
+        dest: /tmp/containerd-1.7.23-linux-amd64.tar.gz
+        mode: '0644'
+
+    - name: Extract containerd plugins
+      unarchive:
+        src: /tmp/containerd-1.7.23-linux-amd64.tar.gz
+        dest: /usr/local
+        remote_src: yes
+
+    - name: Clean up downloaded archive
+      file:
+        path: /tmp/containerd-1.7.23-linux-amd64.tar.gz
+        state: absent
+
+    - name: Ensure /usr/local/lib/systemd/system/ directory exists
+      file:
+        path: /usr/local/lib/systemd/system/
+        state: directory
+        mode: '0755'
+
+    - name: Add containerd systemd file 
+      get_url:
+        url: https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
+        dest: /usr/local/lib/systemd/system/containerd.service
+        mode: '0644'
+
+    - name: Reload daemon
+      systemd:
+        daemon_reload: true
+
+    - name: Enable and start containerd service
+      systemd:
+        name: containerd
+        enabled: true
+        state: started
+    
+    - name: Ensure /etc/containerd/ directory exists
+      file:
+        path: /etc/containerd/
+        state: directory
+        mode: '0755'
+
+    - name: Configure containerd to use systemd as the cgroup driver
+      copy:
+        src: containerd_config.toml
+        dest: /etc/containerd/config.toml
+        mode: '0644'
+        
+    - name: Start containerd service
+      systemd:
+        name: containerd
+        state: restarted
+
+    - name: Verify containerd status
+      systemd:
+        name: containerd
+        state: started  
+
+- name: Download and install runc
+  block:
+    - name: Download runc
+      get_url:
+        url: https://github.com/opencontainers/runc/releases/download/v1.2.0/runc.amd64
+        dest: /tmp/runc.amd64
+        mode: "644"
+
+    - name: Install runc
+      command:
+        install -m 755 /tmp/runc.amd64 /usr/local/sbin/runc
+        
+
+# - name: Download and install CNI plugins
+#   block:
+#     - name: Create CNI directory
+#       file:
+#         path: /opt/cni/bin
+#         state: directory
+#         mode: '0755'
+
+#     - name: Download CNI plugins
+#       get_url:
+#         url: https://github.com/containernetworking/plugins/releases/download/v1.6.0/cni-plugins-linux-amd64-v1.6.0.tgz
+#         dest: /tmp/cni-plugins-linux-amd64-v1.6.0.tgz
+#         mode: '0644'
+
+#     - name: Extract CNI plugins
+#       unarchive:
+#         src: /tmp/cni-plugins-linux-amd64-v1.6.0.tgz
+#         dest: /opt/cni/bin
+#         remote_src: yes
+
+#     - name: Clean up downloaded archive
+#       file:
+#         path: /tmp/cni-plugins-linux-amd64-v1.6.0.tgz
+#         state: absent

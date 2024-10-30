@@ -1,0 +1,108 @@
+---
+
+- hosts: all
+  remote_user: ubuntu
+  become: true
+  gather_facts: true 
+  any_errors_fatal: true
+  roles:
+    - k8s_node
+
+- hosts: k8s_master
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Run kubeadm init on the master node
+      command: >
+        kubeadm init 
+        --pod-network-cidr=10.244.0.0/16 
+        --kubernetes-version=v1.31.0 
+        --control-plane-endpoint={{ groups["k8s_master"][0] }}
+        --apiserver-cert-extra-sans={{ groups["k8s_master"][0] }}
+      register: init_output
+
+    - name: Display kubeadm init output
+      debug:
+        var: init_output.stdout_lines
+
+    - name: Set up kubeconfig for the root user
+      shell: |
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+    - name: Get the join command for joining worker nodes
+      command: kubeadm token create --print-join-command
+      register: kubernetes_join_command
+
+    - name: Display the kubeadm join command
+      debug:
+        var: kubernetes_join_command.stdout
+
+    - name: Copy join command to local file.
+      local_action: copy content="{{ kubernetes_join_command.stdout }}" dest="kubernetes_join_command" mode=0777
+
+- hosts: k8s_workers
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Copy join command from Ansible host to worker nodes.
+      copy:
+        src: kubernetes_join_command
+        dest: /tmp/kubernetes_join_command
+        mode: '0777'
+
+    - name: Join Worker Node to Cluster
+      command: sh /tmp/kubernetes_join_command
+      register: worker_join
+
+    - name: Display outputs of kubeadm join
+      debug:
+        var: worker_join
+
+- hosts: k8s_master
+  remote_user: ubuntu
+  become: true 
+  tasks:
+    - name: Verify initial kubectl get nodes
+      command: kubectl get nodes
+      register: kubectl_outputs
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+    
+    - name: Display initial node status
+      debug:
+        var: kubectl_outputs.stdout_lines
+
+    - name: Install Flannel network plugins
+      command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      register: flannel_result
+      failed_when: flannel_result.rc != 0
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+    
+    - name: Wait for nodes becoming ready
+      command: kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      register: wait_result
+      failed_when: wait_result.rc != 0
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Verify final node status
+      command: kubectl get pods -A -o wide
+      register: all_pods
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+    
+    - name: Display final node status
+      debug:
+        var: all_pods.stdout_lines
+
+    - name: Export kubeconfig file
+      fetch: 
+        src: /etc/kubernetes/admin.conf
+        dest: /tmp/kubeconfig
+        flat: yes
+        mode: '0644'
+      ignore_errors: true
+  
