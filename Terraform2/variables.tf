@@ -20,3 +20,7 @@ variable "master_machine_type" {
 variable "worker_machine_type" {
   default = "t2.medium"
 }
+variable "key_name" {
+  description = "name of the key pair to use for ssh access"
+  type = string
+}
