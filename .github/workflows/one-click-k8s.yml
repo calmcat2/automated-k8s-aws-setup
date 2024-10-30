@@ -23,7 +23,10 @@ on:
         default: 't2.medium'
         required: false
         type: string
-
+      ssh_key:
+        description: "Name of SSH key on AWS to be used to access the EC2 instances."
+        required: true
+        type: string
 
 permissions:
   contents: read

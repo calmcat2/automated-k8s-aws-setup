@@ -11,4 +11,5 @@ This repo leverages the power of github actions to automated the process create 
    -  ```AWS_ACCESS_KEY_ID```: Access key of the AWS user
    -  ```AWS_SECRET_ACCESS_KEY```: Secret key of the AWS user
    -  ```SSH_KEY_EC2```: The whole content of the ssh key .pem file. 
-2. Go to github actions 
+2. Go to github Actions tab, on the left, choose the workflow ```Create a k8s cluster```.
+3. On the right side, click ```Run workflow```, enter the 
