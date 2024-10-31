@@ -4,7 +4,7 @@ This repository leverages GitHub Actions to automate the creation of a Kubernete
 
 ## Prerequisites
 1. AWS user credentials with the necessary EC2 action rights. The minimum required permissions are detailed in the `aws_iam_policy.json`.
-2. An SSH key named "ansible" generated in AWS, with the private key saved in .pem format.
+2. An SSH key (note the name) generated in AWS, with the private key saved in .pem format.
 3. The ability to copy this repository and create your own repository (it is highly recommended to use a private repository as all artifacts are accessible by the public in a public repository).
 
 ## Steps to Create a Kubernetes Cluster
