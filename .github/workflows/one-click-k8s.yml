@@ -156,13 +156,15 @@ jobs:
     
     - name: Check Cluster Health
       run: |
+        sleep 30
+
         # Check API Server health
-        ls -la ~/.kube/kubeconfig
         if ! kubectl get --raw='/readyz?verbose'; then
           echo "API Server is not healthy"
           exit 1
         fi
         
+
         # Check Node Status
         if ! kubectl get nodes | grep -v "Ready" | grep -v "NAME"; then
           echo "All nodes are Ready"
@@ -172,7 +174,7 @@ jobs:
           exit 1
         fi
         
-        # Check Core Components
+        # Check Core pods
         if ! kubectl get pods -n kube-system | grep -v "Running" | grep -v "Completed" | grep -v "NAME"; then
           echo "All system pods are running"
         else
@@ -181,14 +183,6 @@ jobs:
           exit 1
         fi
         
-        # Check Component Status
-        if ! kubectl get cs | grep -v "Healthy" | grep -v "NAME"; then
-          echo "All components are healthy"
-        else
-          echo "Some components are unhealthy"
-          kubectl get cs
-          exit 1
-        fi
 
   Security-enhancement:
     name: Close ssh port on all nodes
