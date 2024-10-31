@@ -53,4 +53,4 @@ We use the workflow `Delete a k8s cluster` to destroy a Kubernetes cluster. Ther
 ### Option 2: Use the Downloaded Terraform State File
 1. Download the artifact `terraform_state_files2` after a successful run of the workflow `Create a k8s cluster`. Check [this link](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/downloading-workflow-artifacts) for instructions.
 2. Add the file to the local repository, under the directory `automated-k8s-aws-setup/Terraform3`. Then push the changes.
-3. Run the workflow.
+3. Run the workflow `Delete a k8s cluster`.
