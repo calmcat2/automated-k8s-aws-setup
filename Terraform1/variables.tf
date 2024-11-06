@@ -26,5 +26,6 @@ variable "worker_machine_type" {
 
 variable "key_name" {
   description = "name of the key pair to use for ssh access"
+  default="ansible"
   type = string
 }
