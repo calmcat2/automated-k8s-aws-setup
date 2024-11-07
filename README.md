@@ -3,7 +3,7 @@
 This repository leverages GitHub Actions to automate the creation of a Kubernetes cluster (v1.31.0) on provisioned EC2 instances on AWS. All you need is an AWS account and a GitHub account. Additionally, a workflow is provided to delete the Kubernetes cluster as long as the Terraform state file is available.
 
 ## Prerequisites
-1. AWS user credentials with the necessary EC2 action rights. The minimum required permissions are detailed in the `aws_iam_policy.json`.
+1. AWS user credentials (Access key ID/Secret pair) with the necessary EC2 action rights. The minimum required permissions are detailed in the `aws_iam_policy.json`.
 2. An SSH key (note the name) generated in AWS, with the private key saved in .pem format.
 3. The ability to copy this repository and create your own repository (it is highly recommended to use a private repository as all artifacts are accessible by the public in a public repository).
 
@@ -40,8 +40,8 @@ We use the workflow `Delete a k8s cluster` to destroy a Kubernetes cluster. Ther
    - Configure Token Permissions:
      - **Note**: Give your token a descriptive name.
      - **Expiration**: Set an expiration date for the token.
+     - **Repository access**: Only select repositories -> Our repository 
      - **Permissions**: Select the following scopes:
-       - `repo` : A private repository
        - `Actions`: Read-only
        - `Secrets`: Read-only
      - Click "Generate token".
