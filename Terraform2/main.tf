@@ -16,9 +16,9 @@ resource "aws_instance" "k8s_master" {
 
 }
 resource "aws_instance" "k8s_workers" {
-  count = length(var.node_names)
+  count = var.node_nums
   tags = {
-    Name    = var.node_names[count.index]
+    Name    = "worker-${count.index}"
     Service = "one-click-k8s"
     Env     = "dev"
     Role    = "k8s-worker"
