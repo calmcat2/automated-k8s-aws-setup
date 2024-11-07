@@ -23,10 +23,7 @@ on:
         default: 't2.medium'
         required: false
         type: string
-      ssh_key:
-        description: "Name of SSH key on AWS to be used to access the EC2 instances."
-        required: true
-        type: string
+
 
 permissions:
   contents: read
@@ -46,7 +43,6 @@ jobs:
       TF_VAR_node_nums: ${{inputs.num_workers}}
       TF_VAR_master_machine_type: ${{inputs.master_machine_type}}
       TF_VAR_worker_machine_type: ${{inputs.worker_machine_type}}
-      TF_VAR_key_name: ${{inputs.ssh_key}}
 
     steps:
     - name: Checkout
@@ -156,15 +152,13 @@ jobs:
     
     - name: Check Cluster Health
       run: |
-        sleep 30
-
         # Check API Server health
+        ls -la ~/.kube/kubeconfig
         if ! kubectl get --raw='/readyz?verbose'; then
           echo "API Server is not healthy"
           exit 1
         fi
         
-
         # Check Node Status
         if ! kubectl get nodes | grep -v "Ready" | grep -v "NAME"; then
           echo "All nodes are Ready"
@@ -174,7 +168,7 @@ jobs:
           exit 1
         fi
         
-        # Check Core pods
+        # Check Core Components
         if ! kubectl get pods -n kube-system | grep -v "Running" | grep -v "Completed" | grep -v "NAME"; then
           echo "All system pods are running"
         else
@@ -183,6 +177,14 @@ jobs:
           exit 1
         fi
         
+        # Check Component Status
+        if ! kubectl get cs | grep -v "Healthy" | grep -v "NAME"; then
+          echo "All components are healthy"
+        else
+          echo "Some components are unhealthy"
+          kubectl get cs
+          exit 1
+        fi
 
   Security-enhancement:
     name: Close ssh port on all nodes
@@ -195,7 +197,6 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      TF_VAR_key_name: ${{inputs.ssh_key}}
 
     steps:
     - name: Checkout
