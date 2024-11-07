@@ -23,6 +23,10 @@ on:
         default: 't2.medium'
         required: false
         type: string
+      ssh_key_name:
+        description: "Name of the ssh key pair to be used for the EC2 instances."
+        required: true
+        type: string
 
 
 permissions:
@@ -43,6 +47,7 @@ jobs:
       TF_VAR_node_nums: ${{inputs.num_workers}}
       TF_VAR_master_machine_type: ${{inputs.master_machine_type}}
       TF_VAR_worker_machine_type: ${{inputs.worker_machine_type}}
+      TF_VAR_key_name: ${{inputs.ssh_key_name}}
 
     steps:
     - name: Checkout
@@ -168,6 +173,8 @@ jobs:
           exit 1
         fi
         
+        sleep 20
+
         # Check Core Components
         if ! kubectl get pods -n kube-system | grep -v "Running" | grep -v "Completed" | grep -v "NAME"; then
           echo "All system pods are running"
