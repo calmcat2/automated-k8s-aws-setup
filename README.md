@@ -28,29 +28,9 @@ We use the workflow `Delete a k8s cluster` to destroy a Kubernetes cluster. Ther
 ### Option 1: Use the Run ID of a Creation Workflow
 **Note**: Artifacts are saved in GitHub for up to 90 days. If it has been more than 90 days since the workflow was run, this method will not work.
 
-1. Create a personal access token:
-   - Go to GitHub Settings:
-     - Navigate to your GitHub profile and click on your profile picture in the top-right corner.
-     - Select "Settings" from the dropdown menu.
-   - Access Developer Settings:
-     - In the left sidebar, click on "Developer settings".
-   - Generate a New Token:
-     - Click on "Personal access tokens".
-     - Click on "Generate new token".
-   - Configure Token Permissions:
-     - **Note**: Give your token a descriptive name.
-     - **Expiration**: Set an expiration date for the token.
-     - **Repository access**: Only select repositories -> Our repository 
-     - **Permissions**: Select the following scopes:
-       - `Actions`: Read-only
-       - `Secrets`: Read-only
-     - Click "Generate token".
-2. Copy the Token:
-   - Copy the generated token. **Note**: You will not be able to see this token again, so make sure to copy it now.
-3. Save the token as a secret in your repository with the name `PERSONAL_ACCESS_TOKEN`.
-4. Start the workflow and enter the run ID of the workflow that exported the artifact `terraform_state_files2`.
+1. Enter the Run ID of the workflow `Create a k8s cluster` that contains the state file. Run workflow.
 
 ### Option 2: Use the Downloaded Terraform State File
 1. Download the artifact `terraform_state_files2` after a successful run of the workflow `Create a k8s cluster`. Check [this link](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-workflow-runs/downloading-workflow-artifacts) for instructions.
-2. Add the file to the local repository, under the directory `automated-k8s-aws-setup/Terraform3`. Then push the changes.
-3. Run the workflow `Delete a k8s cluster`.
+2. Add the file to the repository, under the directory `automated-k8s-aws-setup/Terraform3`. Then push the change.
+3. Leave `Run ID` as empty. Run the workflow `Delete a k8s cluster`.
