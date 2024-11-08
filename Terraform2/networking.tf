@@ -44,7 +44,8 @@ resource "aws_route_table_association" "public_route" {
 }
 
 #EIP for the master node
-resource "aws_eip" "name" {
+resource "aws_eip" "k8s_master" {
+  depends_on=[aws_internet_gateway.k8s]
   instance = aws_instance.k8s_master.id
   domain   = "vpc"
 }
