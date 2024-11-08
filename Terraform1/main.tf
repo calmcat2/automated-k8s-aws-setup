@@ -37,7 +37,7 @@ resource "aws_instance" "k8s_workers" {
 resource "local_file" "inventory" {
   filename = "ansible/inventory.ini"
   content = templatefile("${path.module}/templates/inventory.tpl", {
-    k8s-master_ips  = aws_instance.k8s_master.public_ip
+    k8s-master_ips  = aws_eip.k8s_master.public_ip
     worker-node_ips = aws_instance.k8s_workers[*].public_ip
     }
   )
