@@ -42,7 +42,10 @@ resource "aws_route_table_association" "public_route" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.internet.id
 }
-
+resource "aws_eip" "name" {
+  instance = aws_instance.k8s_master.id
+  domain   = "vpc"
+}
 resource "aws_security_group" "k8s_master" {
   name   = "k8s_master_nodes"  
   vpc_id = aws_vpc.k8s.id
