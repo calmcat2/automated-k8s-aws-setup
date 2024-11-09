@@ -78,6 +78,17 @@ resource "aws_security_group_rule" "k8s_master_api" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+resource "aws_security_group_rule" "k8s_master_master" {
+  # Inbound from workers
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 0
+  to_port = 0
+  protocol = "all"
+  source_security_group_id = aws_security_group.k8s_master.id
+
+}
+
 resource "aws_security_group_rule" "k8s_master_worker" {
   # Inbound from workers
   security_group_id        = aws_security_group.k8s_master.id

@@ -48,6 +48,7 @@ resource "aws_eip" "k8s_master" {
   domain   = "vpc"
 }
 
+#seperated sg rule to prevent circular dependency
 resource "aws_security_group" "k8s_master" {
   name   = "k8s_master_nodes"  
   vpc_id = aws_vpc.k8s.id
@@ -86,7 +87,18 @@ resource "aws_security_group_rule" "k8s_master_ssh" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-#seperated sg rule to prevent circular dependency
+
+resource "aws_security_group_rule" "k8s_master_master" {
+  # Inbound from workers
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 0
+  to_port = 0
+  protocol = "all"
+  source_security_group_id = aws_security_group.k8s_master.id
+
+}
+
 resource "aws_security_group_rule" "k8s_master_worker" {
   # Inbound from workers
   security_group_id = aws_security_group.k8s_master.id
