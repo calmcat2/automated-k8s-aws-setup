@@ -51,45 +51,65 @@ resource "aws_eip" "k8s_master" {
 resource "aws_security_group" "k8s_master" {
   name   = "k8s_master_nodes"  
   vpc_id = aws_vpc.k8s.id
-
-  # Inbound from other masters
-  ingress {
-    from_port         = 0
-    to_port          = 0
-    protocol         = "all"
-    self             = true    
-  }
-
-  # SSH access
-  ingress {
-    from_port         = 22
-    to_port           = 22
-    protocol          = "tcp"
-    cidr_blocks       = ["0.0.0.0/0"]
-  }
-
-  # K8s API server access
-  ingress {
-    from_port         = 6443
-    to_port           = 6443
-    protocol          = "tcp"
-    cidr_blocks       = ["0.0.0.0/0"]
-  }
-
-  # Outbound
-  egress {
-    from_port         = 0
-    to_port           = 0
-    protocol          = "all"
-    cidr_blocks       = ["0.0.0.0/0"]
-  }
-
   tags = {
     Name = "k8s-master-sg"
   }
 }
 
-resource "aws_security_group_rule" "k8s_master_inbound" {
+resource "aws_security_group_rule" "k8s_master_outbound" {
+  # Outbound
+  security_group_id = aws_security_group.k8s_master.id
+  type= "egress"
+  from_port = 0
+  to_port = 0
+  protocol = "all"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "k8s_master_api" {
+  # K8s API server access
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 6443
+  to_port = 6443
+  protocol = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "k8s_master_ssh" {
+  # SSH access
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+#seperated sg rule to prevent circular dependency
+resource "aws_security_group_rule" "k8s_master_worker" {
+  # Inbound from workers
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 0
+  to_port = 0
+  protocol = "all"
+  source_security_group_id = aws_security_group.k8s_worker.id
+
+}
+#seperated sg rule to prevent sg resource deletion when this rule is deleted
+resource "aws_security_group_rule" "k8s_master_ssh" {
+  # SSH access
+  security_group_id = aws_security_group.k8s_master.id
+  type= "ingress"
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+#seperated sg rule to prevent circular dependency
+resource "aws_security_group_rule" "k8s_master_worker" {
   # Inbound from workers
   security_group_id = aws_security_group.k8s_master.id
   type= "ingress"
