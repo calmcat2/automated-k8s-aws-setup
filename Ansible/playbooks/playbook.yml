@@ -17,7 +17,6 @@
         kubeadm init 
         --pod-network-cidr=10.244.0.0/16 
         --kubernetes-version=v1.31.0 
-        --control-plane-endpoint={{ groups["k8s_master"][0] }}
         --apiserver-cert-extra-sans={{ groups["k8s_master"][0] }}
       register: init_output
 
@@ -105,4 +104,12 @@
         flat: yes
         mode: '0644'
       ignore_errors: true
-  
+
+#replcae the IP in the kubeconfig file to the master node's Public IP
+- hosts: localhost
+  tasks:
+    - name: Replace the IP in the kubeconfig file
+      replace:
+        path: /tmp/kubeconfig
+        regexp: 'https://[0-9.]+:6443$'
+        replace: 'https://{{ groups["k8s_master"][0] }}:6443'

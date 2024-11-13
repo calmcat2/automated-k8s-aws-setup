@@ -42,134 +42,119 @@ resource "aws_route_table_association" "public_route" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.internet.id
 }
+
 resource "aws_eip" "k8s_master" {
   depends_on=[aws_internet_gateway.k8s]
   instance = aws_instance.k8s_master.id
   domain   = "vpc"
 }
 
-#seperated sg rule to prevent circular dependency
 resource "aws_security_group" "k8s_master" {
   name   = "k8s_master_nodes"  
   vpc_id = aws_vpc.k8s.id
+  revoke_rules_on_delete = true
   tags = {
     Name = "k8s-master-sg"
   }
 }
 
-resource "aws_security_group_rule" "k8s_master_outbound" {
+#outbound rule for master nodes
+resource "aws_vpc_security_group_egress_rule" "k8s_master_outbound" {
   # Outbound
   security_group_id = aws_security_group.k8s_master.id
-  type= "egress"
-  from_port = 0
-  to_port = 0
-  protocol = "all"
-  cidr_blocks       = ["0.0.0.0/0"]
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
 }
 
-resource "aws_security_group_rule" "k8s_master_api" {
-  # K8s API server access
+# Access to port 6443 temporarily open to all
+resource "aws_vpc_security_group_ingress_rule" "k8s_master_api" {
   security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 6443
-  to_port = 6443
-  protocol = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
+
+  cidr_ipv4   = "0.0.0.0/0"
+  from_port   = 6443
+  ip_protocol = "tcp"
+  to_port     = 6443
 }
 
-resource "aws_security_group_rule" "k8s_master_ssh" {
-  # SSH access
+# SSH access to masters
+resource "aws_vpc_security_group_ingress_rule" "k8s_master_ssh" {
   security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 22
-  to_port = 22
-  protocol = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
+
+  cidr_ipv4   = "0.0.0.0/0"
+  from_port   = 22
+  ip_protocol = "tcp"
+  to_port     = 22
 }
 
-
-resource "aws_security_group_rule" "k8s_master_master" {
-  # Inbound from workers
+# Inbound from other masters and self
+resource "aws_vpc_security_group_ingress_rule" "k8s_master_master" {
   security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 0
-  to_port = 0
-  protocol = "all"
-  source_security_group_id = aws_security_group.k8s_master.id
+
+  referenced_security_group_id = aws_security_group.k8s_master.id
+  ip_protocol = "-1"
 
 }
 
-resource "aws_security_group_rule" "k8s_master_worker" {
-  # Inbound from workers
+# Inbound from workers for flannel networking
+resource "aws_vpc_security_group_ingress_rule" "k8s_master_worker_flannel1" {
   security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 0
-  to_port = 0
-  protocol = "all"
-  source_security_group_id = aws_security_group.k8s_worker.id
+
+  referenced_security_group_id = aws_security_group.k8s_worker.id
+  ip_protocol = "udp"
+  from_port = 8285
+  to_port = 8285
 
 }
-#seperated sg rule to prevent sg resource deletion when this rule is deleted
-resource "aws_security_group_rule" "k8s_master_ssh" {
-  # SSH access
+resource "aws_vpc_security_group_ingress_rule" "k8s_master_worker_flannel2" {
   security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 22
-  to_port = 22
-  protocol = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-}
 
-#seperated sg rule to prevent circular dependency
-resource "aws_security_group_rule" "k8s_master_worker" {
-  # Inbound from workers
-  security_group_id = aws_security_group.k8s_master.id
-  type= "ingress"
-  from_port = 0
-  to_port = 0
-  protocol = "all"
-  source_security_group_id = aws_security_group.k8s_worker.id
+  referenced_security_group_id = aws_security_group.k8s_worker.id
+  ip_protocol = "udp"
+  from_port = 8472
+  to_port = 8472
 
 }
 
 resource "aws_security_group" "k8s_worker" {
   name   = "k8s_worker_nodes"  
   vpc_id = aws_vpc.k8s.id
-
-  # Inbound from master
-  ingress {
-    from_port                = 0
-    to_port                  = 0
-    protocol                 = "all"
-    security_groups          = [aws_security_group.k8s_master.id]
-  }
-
-    # Inbound from other workers
-  ingress {
-    from_port         = 0
-    to_port          = 0
-    protocol         = "all"
-    self             = true    
-  }
-
-  # SSH access
-  ingress {
-    from_port         = 22
-    to_port           = 22
-    protocol          = "tcp"
-    cidr_blocks       = ["0.0.0.0/0"]
-  }
-
-  # Outbound
-  egress {
-    from_port         = 0
-    to_port           = 0
-    protocol          = "all"
-    cidr_blocks       = ["0.0.0.0/0"]
-  }
-
+  revoke_rules_on_delete = true
   tags = {
     Name = "k8s-worker-sg"
   }
 }
 
+#outbound rule for worker nodes
+resource "aws_vpc_security_group_egress_rule" "k8s_worker_outbound" {
+  security_group_id = aws_security_group.k8s_worker.id
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+# SSH access to workers
+resource "aws_vpc_security_group_ingress_rule" "k8s_worker_ssh" {
+  security_group_id = aws_security_group.k8s_worker.id
+
+  cidr_ipv4   = "0.0.0.0/0"
+  from_port   = 22
+  ip_protocol = "tcp"
+  to_port     = 22
+}
+
+# Inbound from other workers
+resource "aws_vpc_security_group_ingress_rule" "k8s_worker_worker" {
+  security_group_id = aws_security_group.k8s_worker.id
+
+  referenced_security_group_id = aws_security_group.k8s_worker.id
+  ip_protocol = "-1"
+
+}
+
+# Inbound from masters
+resource "aws_vpc_security_group_ingress_rule" "k8s_worker_master" {
+  security_group_id = aws_security_group.k8s_worker.id
+
+  referenced_security_group_id = aws_security_group.k8s_master.id
+  ip_protocol = "-1"
+
+}
